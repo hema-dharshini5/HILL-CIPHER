@@ -34,102 +34,104 @@ STEP-5: Combine all these groups to get the complete cipher text.
 
 ## PROGRAM 
 ```
-import numpy as np
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 
-def text_to_numbers(text):
-    return [ord(char) - ord('A') for char in text.upper()]
+int keymat[3][3] = {
+    { 1, 2, 1 },
+    { 2, 3, 2 },
+    { 2, 2, 1 }
+};
 
-def numbers_to_text(numbers):
-    return ''.join(chr(int(num) + ord('A')) for num in numbers)
+int invkeymat[3][3] = {
+    { -1, 0, 1 },
+    { 2, -1, 0 },
+    { -2, 2, -1 }
+};
 
-def mod_inverse(a, m):
-    # Extended Euclidean Algorithm for modular inverse
-    a = a % m
-    for x in range(1, m):
-        if (a * x) % m == 1:
-            return x
-    raise ValueError("No modular inverse exists")
+char key[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-def matrix_mod_inv(matrix, modulus):
-    n = matrix.shape[0]
-    det = int(round(np.linalg.det(matrix))) % modulus
-    det_inv = mod_inverse(det, modulus)
-
-    # Find matrix of cofactors
-    cofactors = np.zeros((n, n), dtype=int)
-    for row in range(n):
-        for col in range(n):
-            minor = np.delete(np.delete(matrix, row, axis=0), col, axis=1)
-            cofactor = int(round(np.linalg.det(minor)))
-            sign = (-1) ** (row + col)
-            cofactors[row, col] = (sign * cofactor) % modulus
-
-    # Adjugate = transpose of cofactor matrix
-    adjugate = cofactors.T % modulus
-
-    # Modular inverse matrix
-    return (det_inv * adjugate) % modulus
-
-
-def hill_cipher_encrypt(plaintext, key):
-    n = len(key)
-    plaintext = plaintext.upper().replace(" ", "")
+void encode(char *ret, char a, char b, char c) {
+    int x, y, z;
+    int posa = (int)a - 65;
+    int posb = (int)b - 65;
+    int posc = (int)c - 65;
     
-    # Padding with 'X' if not divisible by matrix size
-    while len(plaintext) % n != 0:
-        plaintext += 'X'
+    x = posa * keymat[0][0] + posb * keymat[1][0] + posc * keymat[2][0];
+    y = posa * keymat[0][1] + posb * keymat[1][1] + posc * keymat[2][1];
+    z = posa * keymat[0][2] + posb * keymat[1][2] + posc * keymat[2][2];
     
-    text_numbers = text_to_numbers(plaintext)
-    key_matrix = np.array(key)
+    ret[0] = key[x % 26];
+    ret[1] = key[y % 26];
+    ret[2] = key[z % 26];
+    ret[3] = '\0';
+}
 
-    encrypted_numbers = []
-    for i in range(0, len(text_numbers), n):
-        block = np.array(text_numbers[i:i+n]).reshape(n, 1)
-        encrypted_block = np.dot(key_matrix, block) % 26
-        encrypted_numbers.extend(encrypted_block.flatten())
-
-    return numbers_to_text(encrypted_numbers)
-
-def remove_padding(text):
-    return text.rstrip('X')  # Note: Be careful if original text ends in 'X'
-
-
-def hill_cipher_decrypt(ciphertext, key):
-    n = len(key)
-    key_matrix = np.array(key)
-    inverse_matrix = matrix_mod_inv(key_matrix, 26).astype(int)
-
-    text_numbers = text_to_numbers(ciphertext)
-    decrypted_numbers = []
-
-    for i in range(0, len(text_numbers), n):
-        block = np.array(text_numbers[i:i+n]).reshape(n, 1)
-        decrypted_block = np.dot(inverse_matrix, block) % 26
-        decrypted_numbers.extend(decrypted_block.flatten())
+void decode(char *ret, char a, char b, char c) {
+    int x, y, z;
+    int posa = (int)a - 65;
+    int posb = (int)b - 65;
+    int posc = (int)c - 65;
     
-    return numbers_to_text(decrypted_numbers)
-
-# ==== Driver Code ====
-if __name__ == "__main__":
-    plaintext = input("Enter plaintext: ")
-    key = [[6, 24, 1], 
-           [13, 16, 10], 
-           [20, 17, 15]]  # 3x3 key matrix
+    x = posa * invkeymat[0][0] + posb * invkeymat[1][0] + posc * invkeymat[2][0];
+    y = posa * invkeymat[0][1] + posb * invkeymat[1][1] + posc * invkeymat[2][1];
+    z = posa * invkeymat[0][2] + posb * invkeymat[1][2] + posc * invkeymat[2][2];
     
-    ciphertext = hill_cipher_encrypt(plaintext, key)
-    print("Encrypted Text:", ciphertext)
+    ret[0] = key[(x % 26 < 0) ? (26 + x % 26) : (x % 26)];
+    ret[1] = key[(y % 26 < 0) ? (26 + y % 26) : (y % 26)];
+    ret[2] = key[(z % 26 < 0) ? (26 + z % 26) : (z % 26)];
+    ret[3] = '\0';
+}
+
+int main() {
+    char msg[1000];
+    char enc[1000] = "";
+    char dec[1000] = "";
+    int n;
     
-    decrypted_text = hill_cipher_decrypt(ciphertext, key)
-    decrypted_text = remove_padding(decrypted_text)
-    print("Decrypted Text:", decrypted_text)
-
-
+    strcpy(msg, "SecurityLaboratory");
+    printf("Simulation of Hill Cipher\n");
+    printf("Input message : %s\n", msg);
+    
+    for (int i = 0; i < strlen(msg); i++) {
+        msg[i] = toupper(msg[i]);
+    }
+    
+    n = strlen(msg) % 3;
+    if (n != 0) {
+        for (int i = 1; i <= (3 - n); i++) {
+            strcat(msg, "X");
+        }
+    }
+    
+    printf("Padded message : %s\n", msg);
+    
+    for (int i = 0; i < strlen(msg); i += 3) {
+        char temp[4];
+        encode(temp, msg[i], msg[i + 1], msg[i + 2]);
+        strcat(enc, temp);
+    }
+    
+    printf("Encoded message : %s\n", enc);
+    
+    for (int i = 0; i < strlen(enc); i += 3) {
+        char temp[4];
+        decode(temp, enc[i], enc[i + 1], enc[i + 2]);
+        strcat(dec, temp);
+    }
+    
+    printf("Decoded message : %s\n", dec);
+    return 0;
+}
 ```
 
 ## OUTPUT
 
-![image](https://github.com/user-attachments/assets/730c02cd-85dc-454c-a208-931465e4bbae)
+![Screenshot 2025-03-19 032313](https://github.com/user-attachments/assets/0c0e9a33-928a-41b4-813f-6373559a7852)
+OUTPUT: Simulating Hill Cipher
 
-
+Input Message : SecurityLaboratory Padded Message : SECURITYLABORATORY Encrypted Message : EACSDKLCAEFQDUKSXU Decrypted Message : SECURITYLABORATORY
 ## RESULT
-Thus, a python program is implement for hill cipher substitution techniques.
+The program is executed successfully
+
